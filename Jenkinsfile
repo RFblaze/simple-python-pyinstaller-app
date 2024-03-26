@@ -1,9 +1,15 @@
 pipeline {
-    agent {
-        docker { image 'python:2-alpine' }
+    agent none
+    options {
+        skipStagesAfterUnstable()
     }
     stages {
         stage('Build') { 
+            agent {
+                docker {
+                    image 'python:2-alpine'
+                }
+            }
             steps {
                 sh 'python -m py_compile sources/add2vals.py sources/calc.py' 
                 stash(name: 'compiled-results', includes: 'sources/*.py*') 
@@ -21,6 +27,21 @@ pipeline {
             post {
                 always {
                     junit 'test-reports/results.xml'
+                }
+            }
+        }
+        stage('Deliver') {
+            agent {
+                docker {
+                    image 'cdrx/pyinstaller-linux:python2'
+                }
+            }
+            steps {
+                sh '/root/.pyenv/shims/pyinstaller --onefile sources/add2vals.py'
+            }
+            post {
+                success {
+                    archiveArtifacts 'dist/add2vals'
                 }
             }
         }
